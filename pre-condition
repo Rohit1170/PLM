@@ -1,0 +1,20 @@
+#include "Header.h"
+
+//Write a pre-condition to check whether user has admin/instructor role while creating BOM if not display custom error message
+
+int pre_Condition6(METHOD_message_t* msg, va_list args) {
+	tag_t parent_bvr;
+	parent_bvr = va_arg(args, tag_t);
+	tag_t role;
+	char* rolename;
+	SA_ask_current_role(&role);
+	SA_ask_role_name2(role, &rolename);
+	printf("\n%s", rolename);
+	if ((tc_strcmp(rolename, "Testing") == 0)||(tc_strcmp(rolename, "engineer") == 0)) {
+		printf("Yes can create bom");
+		return 0;
+	}
+	printf("Role is not engineer");
+	EMH_store_error(EMH_severity_error, error5);
+	return error5;
+}
