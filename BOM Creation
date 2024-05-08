@@ -1,0 +1,120 @@
+#include "Header.h"
+tag_t window, top_bom_line, bom, view1, bvr1, new_line1;
+int code()
+{
+    int k = 0, a, prv_a = 0, ifail;
+    char *s, x;
+    FILE *f1;
+    char buffer[1024];
+    char *Item_id, *Name, *Type, *Level, *qty, *find_num;
+    tag_t parent, parent_rev, bom_view1, bvr1, view_type, user, home;
+    tag_t pr_item[10], pr_rev[10];
+    for (int i = 0; i < 10; i++)
+    {
+        pr_rev[i] = pr_item[i] = NULLTAG;
+    }
+    SA_find_user2("infodba", &user);
+    SA_ask_user_home_folder(user, &home);
+    f1 = fopen("bom.csv", "rt");
+    if (f1)
+    {
+        while (fgets(buffer, 1024, f1))
+        {
+            if (k > 0)
+            {
+                Item_id = strtok(buffer, ",");
+                Name = strtok(NULL, ",");
+                Type = strtok(NULL, ",");
+                Level = strtok(NULL, ",");
+                qty = strtok(NULL, ",");
+                find_num = strtok(NULL, ",");
+                printf("\n\n\t Id=%s", Item_id);
+                printf("\n\n\t Name=%s", Name);
+                printf("\n\n\t Type=%s", Type);
+                printf("\n\n\t Level=%s", Level);
+                printf("\n\n\t Quantity=%s", qty);
+                printf("\n\n\t Find number=%s", find_num);
+
+                a = atoi(Level);
+                if (a == 0)
+                {
+                    ITEM_create_item(Item_id, Name, Type, "A", &parent, &parent_rev);
+                    AOM_save(parent);
+                    AOM_save(parent_rev);
+                    BOM_create_window(&window);
+                    PS_ask_default_view_type(&view_type);
+
+                    PS_create_bom_view(view_type, NULL, NULL, parent, &bom_view1);
+
+                    AOM_save(bom_view1);
+                    AOM_save(parent);
+
+                    PS_create_bvr(bom_view1, NULL, NULL, false, parent_rev, &bvr1);
+                    AOM_save(bvr1);
+                    AOM_save(parent_rev);
+
+                    pr_item[0] = parent;
+                    pr_rev[0] = parent_rev;
+
+                    FL_insert(home, parent, 999);
+                    ifail = AOM_save_without_extensions(home);
+                    if (ifail == ITK_ok)
+                    {
+                        printf("\n\n\tsaved");
+                    }
+                    else
+                    {
+                        EMH_ask_error_text(ifail, &x);
+                        printf("error=%s", x);
+                    }
+                    ifail = BOM_save_window(window);
+                    if (ifail == ITK_ok)
+                    {
+                        printf("\n\n\t BOM saved");
+                    }
+                    else
+                    {
+                        EMH_ask_error_text(ifail, &x);
+                        printf("error=%s", x);
+                    }
+                }
+
+                if (a > 0)
+                {
+                    tag_t child_1, child_rev_1, bom_view2, bvr2, new_line2;
+                    int qtyattr, findattr;
+                    BOM_set_window_top_line(window, pr_item[a - 1], pr_rev[a - 1], NULLTAG, &top_bom_line);
+
+                    ITEM_create_item(Item_id, Name, Type, "A", &child_1, &child_rev_1);
+                    AOM_save(child_1);
+                    AOM_save(child_rev_1);
+
+                    if (pr_item[a] == NULLTAG || prv_a >= a || prv_a < a)
+                    {
+                        pr_item[a] = child_1;
+                        pr_rev[a] = child_rev_1;
+                    }
+                    PS_create_bom_view(NULLTAG, "tc1", "", child_1, &bom_view2);
+                    AOM_save(bom_view2);
+                    AOM_save(child_1);
+                    PS_create_bvr(bom_view2, "tc2", "", false, child_rev_1, &bvr2);
+                    AOM_save(bvr2);
+                    AOM_save(child_rev_1);
+
+                    BOM_line_add(top_bom_line, child_1, child_rev_1, bom_view2, &new_line2);
+                    AOM_save(new_line2);
+                    BOM_line_look_up_attribute("bl_quantity", &qtyattr);
+                    BOM_line_set_attribute_string(new_line2, qtyattr, qty);
+                    BOM_line_look_up_attribute("bl_quantity", &qtyattr);
+                    BOM_line_set_attribute_string(new_line2, &findattr, find_num);
+
+                    BOM_save_window(window);
+
+                    prv_a = a;
+                }
+            }
+            k++;
+        }
+    }
+    return 0;
+}
